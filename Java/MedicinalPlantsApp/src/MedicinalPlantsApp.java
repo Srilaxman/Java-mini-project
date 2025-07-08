@@ -1,0 +1,503 @@
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.sql.*;
+import javax.imageio.ImageIO;
+
+public class MedicinalPlantsApp extends JFrame {
+    private JTextField usernameField;
+    private JPasswordField passwordField;
+    private JButton loginButton;
+    private final JPanel mainPanel;
+    private final CardLayout cardLayout;
+    private JTable plantTable;
+    private DefaultTableModel tableModel;
+    private JTextField nameField;
+    private JTextArea descriptionField;
+    private JTextField plantIdField;
+    private JLabel imageLabel;
+    private File selectedImageFile;
+    Color c1 = new Color(102, 255, 102);
+
+    // Database connection details
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/medicinalplants";
+    private static final String DB_USER = "root";
+    private static final String DB_PASSWORD = "srilaxman";
+
+    public MedicinalPlantsApp() {
+        setTitle("Medicinal Plant Identification");
+        setSize(800, 600);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        cardLayout = new CardLayout();
+        mainPanel = new JPanel(cardLayout);
+
+        mainPanel.add(createLoginPanel(), "login");
+        mainPanel.add(createAdminPanel(), "admin");
+        mainPanel.add(createUserPanel(), "user");
+
+        add(mainPanel);
+        cardLayout.show(mainPanel, "login");
+    }
+
+    private JPanel createLoginPanel() {
+        JPanel loginPanel = new BackgroundPanel(new ImageIcon("D:\\Study Materials\\Mini Project\\Java/background.jpg").getImage(), 0.5f);
+        loginPanel.setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.insets = new Insets(5, 5, 5, 5);
+
+        JLabel headingLabel = new JLabel("Medicinal Plants Identification");
+        headingLabel.setFont(new Font("Serif", Font.BOLD, 30));
+        gbc.gridwidth = 2;
+        loginPanel.add(headingLabel, gbc);
+
+        gbc.gridwidth = 1;
+        gbc.gridy++;
+        usernameField = new JTextField(15);
+        passwordField = new JPasswordField(15);
+        loginButton = new JButton("Login");
+
+        loginButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                authenticate();
+            }
+        });
+
+        usernameField.addActionListener(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                loginButton.doClick();
+            }
+        });
+
+        passwordField.addActionListener(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                loginButton.doClick();
+            }
+        });
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        loginPanel.add(new JLabel("Username:"), gbc);
+        gbc.gridx++;
+        loginPanel.add(usernameField, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        loginPanel.add(new JLabel("Password:"), gbc);
+        gbc.gridx++;
+        loginPanel.add(passwordField, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.gridwidth = 2;
+        loginPanel.add(loginButton, gbc);
+
+        return loginPanel;
+    }
+
+    private JPanel createAdminPanel() {
+        JPanel adminPanel = new JPanel(new BorderLayout());
+        adminPanel.setBackground(c1);
+        JLabel label = new JLabel("Admin Panel", JLabel.CENTER);
+        adminPanel.add(label, BorderLayout.NORTH);
+
+        JPanel plantPanel = new JPanel(new GridBagLayout());
+        plantPanel.setBackground(c1);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+
+        plantIdField = new JTextField(5);
+        nameField = new JTextField(20);
+        descriptionField = new JTextArea(5, 20);
+        JButton addButton = new JButton("Add Plant");
+        JButton updateButton = new JButton("Update Plant");
+        JButton deleteButton = new JButton("Delete Plant");
+        JButton loadButton = new JButton("Load Plant");
+        JButton addImageButton = new JButton("Add Image");
+        imageLabel = new JLabel();
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        plantPanel.add(new JLabel("Plant ID:"), gbc);
+        gbc.gridx++;
+        plantPanel.add(plantIdField, gbc);
+        gbc.gridx++;
+        plantPanel.add(loadButton, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        plantPanel.add(new JLabel("Name:"), gbc);
+        gbc.gridx++;
+        plantPanel.add(nameField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        plantPanel.add(new JLabel("Description:"), gbc);
+        gbc.gridx++;
+        plantPanel.add(new JScrollPane(descriptionField), gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        plantPanel.add(new JLabel("Image:"), gbc);
+        gbc.gridx++;
+        plantPanel.add(imageLabel, gbc);
+        gbc.gridx++;
+        plantPanel.add(addImageButton, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.gridwidth = 3;
+        plantPanel.add(addButton, gbc);
+
+        gbc.gridy++;
+        plantPanel.add(updateButton, gbc);
+
+        gbc.gridy++;
+        plantPanel.add(deleteButton, gbc);
+
+        adminPanel.add(plantPanel, BorderLayout.CENTER);
+
+        addButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                addPlant(nameField.getText(), descriptionField.getText());
+            }
+        });
+
+        updateButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                updatePlant(plantIdField.getText(), nameField.getText(), descriptionField.getText());
+            }
+        });
+
+        deleteButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                deletePlant(plantIdField.getText());
+            }
+        });
+
+        loadButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                loadPlant(plantIdField.getText(), nameField, descriptionField);
+            }
+        });
+
+        addImageButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                addImage();
+            }
+        });
+
+        // Add table to display plants
+        tableModel = new DefaultTableModel(new Object[]{"ID", "Name", "Description"}, 0);
+        plantTable = new JTable(tableModel);
+        JScrollPane tableScrollPane = new JScrollPane(plantTable);
+        adminPanel.add(tableScrollPane, BorderLayout.SOUTH);
+
+        JButton logoutButton = new JButton("Logout");
+        logoutButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                cardLayout.show(mainPanel, "login");
+            }
+        });
+        adminPanel.add(logoutButton, BorderLayout.SOUTH);
+
+        return adminPanel;
+    }
+
+    private JPanel createUserPanel() {
+        JPanel userPanel = new JPanel(new BorderLayout());
+        userPanel.setBackground(c1);
+        JLabel label = new JLabel("User Panel - Plant Search", JLabel.CENTER);
+        userPanel.add(label, BorderLayout.NORTH);
+
+        JPanel searchPanel = new JPanel();
+        JTextField searchField = new JTextField(20);
+        JButton searchButton = new JButton("Search");
+        JButton searchImageButton = new JButton("Search by Image");
+
+        // Table to display search results
+        DefaultTableModel userTableModel = new DefaultTableModel(new Object[]{"ID", "Name", "Description"}, 0);
+        JTable userTable = new JTable(userTableModel);
+        JScrollPane userTableScrollPane = new JScrollPane(userTable);
+
+        searchButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                searchPlant(searchField.getText(), userTableModel);
+            }
+        });
+
+        searchImageButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                searchPlantByImage(userTableModel);
+            }
+        });
+
+        searchPanel.add(new JLabel("Search Plant:"));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+        searchPanel.add(searchImageButton);
+        userPanel.add(searchPanel, BorderLayout.NORTH);
+        userPanel.add(userTableScrollPane, BorderLayout.CENTER);
+
+        JButton logoutButton = new JButton("Logout");
+        logoutButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                cardLayout.show(mainPanel, "login");
+            }
+        });
+        userPanel.add(logoutButton, BorderLayout.SOUTH);
+
+        return userPanel;
+    }
+
+    private void authenticate() {
+        String username = usernameField.getText();
+        String password = new String(passwordField.getPassword());
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE username = ? AND password = ?")) {
+
+            ps.setString(1, username);
+            ps.setString(2, password);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                String role = rs.getString("role");
+                if ("admin".equals(role)) {
+                    cardLayout.show(mainPanel, "admin");
+                    loadAllPlants();
+                } else {
+                    cardLayout.show(mainPanel, "user");
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Invalid credentials");
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void addPlant(String name, String description) {
+    try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+         PreparedStatement ps = conn.prepareStatement("INSERT INTO plants (name, description, image) VALUES (?, ?, ?)")) {
+
+        ps.setString(1, name);
+        ps.setString(2, description);
+
+        if (selectedImageFile != null) {
+            try {
+                // Log the file path and size for debugging
+                System.out.println("Selected image file: " + selectedImageFile.getAbsolutePath());
+                System.out.println("File size: " + selectedImageFile.length() + " bytes");
+
+                // Read the file into a byte array
+                byte[] imageBytes = new byte[(int) selectedImageFile.length()];
+                try (FileInputStream fis = new FileInputStream(selectedImageFile)) {
+                    fis.read(imageBytes);
+                }
+
+                // Use ByteArrayInputStream to set the binary stream
+                try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes)) {
+                    ps.setBinaryStream(3, bais, imageBytes.length);
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error reading image file: " + ex.getMessage());
+                return; // Exit method if there's an error reading the image file
+            }
+        } else {
+            ps.setNull(3, Types.BLOB);
+        }
+
+        ps.executeUpdate();
+        JOptionPane.showMessageDialog(this, "Plant added successfully");
+        loadAllPlants();
+    } catch (SQLException ex) {
+        ex.printStackTrace();
+        JOptionPane.showMessageDialog(this, "Error adding plant: " + ex.getMessage());
+    }
+}
+
+
+
+    private void updatePlant(String id, String name, String description) {
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement ps = conn.prepareStatement("UPDATE plants SET name = ?, description = ? WHERE id = ?")) {
+
+            ps.setString(1, name);
+            ps.setString(2, description);
+            ps.setInt(3, Integer.parseInt(id));
+
+            ps.executeUpdate();
+            JOptionPane.showMessageDialog(this, "Plant updated successfully");
+            loadAllPlants();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void deletePlant(String id) {
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM plants WHERE id = ?")) {
+
+            ps.setInt(1, Integer.parseInt(id));
+            ps.executeUpdate();
+            JOptionPane.showMessageDialog(this, "Plant deleted successfully");
+            loadAllPlants();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void loadPlant(String id, JTextField nameField, JTextArea descriptionField) {
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement ps = conn.prepareStatement("SELECT * FROM plants WHERE id = ?")) {
+
+            ps.setInt(1, Integer.parseInt(id));
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                nameField.setText(rs.getString("name"));
+                descriptionField.setText(rs.getString("description"));
+                byte[] imageData = rs.getBytes("image");
+                if (imageData != null) {
+                    ImageIcon imageIcon = new ImageIcon(imageData);
+                    Image image = imageIcon.getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH);
+                    imageLabel.setIcon(new ImageIcon(image));
+                } else {
+                    imageLabel.setIcon(null);
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Plant not found");
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void loadAllPlants() {
+        tableModel.setRowCount(0);
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT * FROM plants")) {
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                String description = rs.getString("description");
+                tableModel.addRow(new Object[]{id, name, description});
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void addImage() {
+        JFileChooser fileChooser = new JFileChooser();
+        int returnValue = fileChooser.showOpenDialog(this);
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
+            selectedImageFile = fileChooser.getSelectedFile();
+            try {
+                Image img = ImageIO.read(selectedImageFile).getScaledInstance(100, 100, Image.SCALE_SMOOTH);
+                imageLabel.setIcon(new ImageIcon(img));
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    private void searchPlant(String name, DefaultTableModel userTableModel) {
+        userTableModel.setRowCount(0);  // Clear existing data
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement ps = conn.prepareStatement("SELECT * FROM plants WHERE name LIKE ?")) {
+
+            ps.setString(1, "%" + name + "%");
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String plantName = rs.getString("name");
+                String plantDescription = rs.getString("description");
+                userTableModel.addRow(new Object[]{id, plantName, plantDescription});
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void searchPlantByImage(DefaultTableModel userTableModel) {
+        JFileChooser fileChooser = new JFileChooser();
+        int returnValue = fileChooser.showOpenDialog(this);
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
+            File imageFile = fileChooser.getSelectedFile();
+            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+                 PreparedStatement ps = conn.prepareStatement("SELECT * FROM plants WHERE image IS NOT NULL")) {
+
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    byte[] imageData = rs.getBytes("image");
+                    if (imageData != null) {
+                        Image dbImage = ImageIO.read(new ByteArrayInputStream(imageData));
+                        Image searchImage = ImageIO.read(imageFile);
+
+                        // Compare the images (simple comparison, you can improve with better algorithms)
+                        if (compareImages(dbImage, searchImage)) {
+                            int id = rs.getInt("id");
+                            String plantName = rs.getString("name");
+                            String plantDescription = rs.getString("description");
+                            userTableModel.setRowCount(0);  // Clear existing data
+                            userTableModel.addRow(new Object[]{id, plantName, plantDescription});
+                            return;
+                        }
+                    }
+                }
+                JOptionPane.showMessageDialog(this, "No matching plant found");
+            } catch (SQLException | IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    private boolean compareImages(Image imgA, Image imgB) {
+        // Implement a simple comparison, you can improve this with a better algorithm
+        return imgA.getWidth(null) == imgB.getWidth(null) && imgA.getHeight(null) == imgB.getHeight(null);
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                new MedicinalPlantsApp().setVisible(true);
+            }
+        });
+    }
+}
+
+class BackgroundPanel extends JPanel {
+    private Image image;
+    private float alpha;
+
+    public BackgroundPanel(Image image, float alpha) {
+        this.image = image;
+        this.alpha = alpha;
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g.create();
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+        g2d.drawImage(image, 0, 0, getWidth(), getHeight(), this);
+        g2d.dispose();
+    }
+}
