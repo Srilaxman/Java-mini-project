@@ -1,2 +1,2 @@
-# Java-mini-project
+# Medicinal Plants Application using Java
 college mini project
